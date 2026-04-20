@@ -31,4 +31,3 @@ export const syncProduct = async (ctx:Context) => {
         ctx.body = { error: "Sync Failed" };
     }
 }
-

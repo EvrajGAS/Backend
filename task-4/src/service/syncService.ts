@@ -1,7 +1,7 @@
 import { Product } from "../entities/productEntity";
 import { Variant } from "../entities/variantEntity";
 import { SyncLog } from "../entities/syncEntity";
-import { fetchUpdatedProducts, fetchProductsById } from "./shopifyService";
+import { fetchUpdatedProducts, fetchDeletedProducts } from "./shopifyService";
 import { productRepo } from "../repository/customerRepo";
 import { variantRepo } from "../repository/VariantRepo";
 import { syncRepo } from "../repository/syncRepo";
@@ -30,18 +30,18 @@ export const syncUpdatedProducts = async () => {
     const log = await getLastSync();
     const lastSyncTime = log.lastSyncTime ? new Date(log.lastSyncTime).toUTCString() : null;
 
-    const shopifyID = await fetchProductsById();
-    const dbProducts = await productRepo.find({
-        select: ["id"]
-    })
+    const deletedProducts = await fetchDeletedProducts(lastSyncTime);
+    // const dbProducts = await productRepo.find({
+    //     select: ["id"]
+    // })
 
-    const dbIds = dbProducts.map((p) => p.id);
+    // const dbIds = dbProducts.map((p) => p.id);
 
-    const deletedIds = dbIds.filter((id) => !shopifyID.includes(id));
+    // const deletedIds = dbIds.filter((id) => !shopifyID.includes(id));
 
-    if (deletedIds.length) {
-        await productRepo.delete(deletedIds);
-        console.log(`Succesfully deleted ${deletedIds.length} Products`)
+    if (deletedProducts.length) {
+        await productRepo.delete(deletedProducts);
+        console.log(`Succesfully deleted ${deletedProducts.length} Products`)
     }
 
     const updatedProducts = await fetchUpdatedProducts(lastSyncTime);
@@ -49,7 +49,7 @@ export const syncUpdatedProducts = async () => {
     if (updatedProducts.length === 0) {
         console.log("No updates");
         await updateSyncTime(new Date());
-        return deletedIds.length;
+        return deletedProducts.length;
     }
 
     let maxUpdatedAt: string | null = lastSyncTime;
@@ -81,7 +81,7 @@ export const syncUpdatedProducts = async () => {
         });
         await variantRepo.save(variants);
 
-        if(!maxUpdatedAt || p.updatedAt > maxUpdatedAt){
+        if(!maxUpdatedAt || new Date(p.updatedAt) > new Date(maxUpdatedAt)){
             maxUpdatedAt = p.updatedAt;
         }
     }
@@ -92,5 +92,5 @@ export const syncUpdatedProducts = async () => {
 
     console.log(`Synced ${updatedProducts.length} Products`);
 
-    return updatedProducts.length + deletedIds.length;
+    return updatedProducts.length + deletedProducts.length;
 }
