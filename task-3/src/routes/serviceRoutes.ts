@@ -1,7 +1,7 @@
-import { Router } from "express";
+import  Router  from "@koa/router";
 import { createService, getServices } from "../controller/serviceController";
 
-const router = Router({ mergeParams: true });
+const router = new Router({ prefix: "/services" });
 
 router.post("/", createService);
 router.get("/", getServices);

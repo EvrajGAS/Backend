@@ -1,8 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToOne, OneToMany } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn , UpdateDateColumn , DeleteDateColumn,  OneToOne, OneToMany, ManyToMany, JoinTable } from "typeorm";
 import { Account } from "./account";
 import { KYC } from "./kyc";
 import { Loan } from "./loan"
-import { CustomerService } from "./CustomerService";
+import { Service } from "./service";
 
 
 @Entity()
@@ -20,7 +20,13 @@ export class Customer {
     phone!: string
 
     @CreateDateColumn()
-    createdAt!: Date
+    createdAt!: Date;
+
+    @UpdateDateColumn()
+    updatedAt!: Date;
+
+    @DeleteDateColumn()
+    deletedAt!: Date;
 
     @OneToOne(() => KYC, (kyc) => kyc.customer)
     kyc!: KYC;
@@ -31,6 +37,7 @@ export class Customer {
     @OneToMany(() => Loan, (loan) => loan.customer)
     loans!: Loan[];
 
-    @OneToMany(() => CustomerService, (cs) => cs.customer)
-    services!: CustomerService[];
+    @ManyToMany(() => Service, (service) => service.customers)
+    @JoinTable()
+    services!: Service[];
 }

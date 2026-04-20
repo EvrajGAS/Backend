@@ -1,6 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column , ManyToOne} from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, DeleteDateColumn} from "typeorm";
 import { Customer } from "./customer";
-
+import { LoanStatus } from "../types/enums";
 
 @Entity()
 export class Loan {
@@ -13,8 +13,20 @@ export class Loan {
     @Column()
     interestRate!: number
 
-    @Column()
-    status!: string
+    @Column({
+        type: "enum",
+        enum: LoanStatus
+    })
+    status!: LoanStatus
+
+    @CreateDateColumn()
+    createdAt!: Date;
+
+    @UpdateDateColumn()
+    updatedAt!: Date;
+
+    @DeleteDateColumn()
+    deletedAt!: Date;
 
     @ManyToOne(() => Customer, (customer) => customer.loans)
     customer!: Customer;

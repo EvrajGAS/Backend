@@ -1,57 +1,65 @@
-import { Request, Response } from "express";
-import { AppDataSource } from "../datasource/app";
-import { Customer } from "../entity/customer";
+import { Context } from "koa";
+import { customerRepo } from "../repository/customerRepo";
 import { validateCustomer } from "../utils/validateCustomer"
-
-const customerRepo = AppDataSource.getRepository(Customer);
+import { CreateCustomer } from "../types/interfaces";
 
 //createCustomer
-export const createCustomer = async (req: Request, res: Response) => {
-    const errors = validateCustomer(req.body);
+export const createCustomer = async (ctx: Context) => {
+    const body = ctx.request.body as CreateCustomer;
+
+    const errors = validateCustomer(body);
 
     if (errors.length > 0) {
-        return res.status(404).json({ errors })
+        ctx.status = 404;
+        ctx.body = errors;
+        return;
     }
 
-    const user = customerRepo.create(req.body);
-    const result = await customerRepo.save(user);
+    const customer = customerRepo.create(body);
+    const result = await customerRepo.save(customer);
 
-    res.status(201).json(result);
+    ctx.body = result;
 }
 
 //getCustomers
-export const getCustomers = async (req: Request, res: Response) => {
+export const getCustomers = async (ctx: Context) => {
     const customers = await customerRepo.find();
-    res.json(customers)
+    ctx.body = customers;
 }
 
 
 //getCustomerById
-export const getCustomerById = async (req: Request, res: Response) => {
-    const findCustomerId = Number(req.params.id);
+export const getCustomerById = async (ctx: Context) => {
+    const findCustomerId = Number(ctx.params.id);
 
     if (findCustomerId) {
         const customer = await customerRepo.findOneBy({
             id: findCustomerId
         });
 
-        if (customer) res.json(customer);
-        else res.status(404).json({ message: "Customer not Found!" });
+        if (customer) ctx.body = customer;
+        else {
+            ctx.status = 404;
+            ctx.body = { message: "Customer not found" };
+        }
     } else {
-        res.status(404).json({ message: "Customer not Found!" });
+        ctx.status = 404;
+        ctx.body = { message: "Customer not found" };
     }
 }
 
 
 //updateCustomer
-export const updateCustomer = async (req: Request, res: Response) => {
-    const errors = validateCustomer(req.body);
+export const updateCustomer = async (ctx: Context) => {
+    const body = ctx.request.body as CreateCustomer;
+
+    const errors = validateCustomer(body);
 
     if (errors.length > 0) {
-        return res.status(404).json({ errors })
+        return ctx.body = errors;
     }
 
-    const findCustomer = Number(req.params.id);
+    const findCustomer = Number(ctx.params.id);
 
     if (findCustomer) {
         const customerExist = await customerRepo.findOneBy({
@@ -59,19 +67,24 @@ export const updateCustomer = async (req: Request, res: Response) => {
         });
 
         if (customerExist) {
-            await customerRepo.update(findCustomer, req.body);
-            res.json(customerExist); //print updated value
+            await customerRepo.update(findCustomer, body);
+            const updatedCustomer = await customerRepo.findOneBy({
+                id: findCustomer,
+            });
+            ctx.body = updatedCustomer;
         } else {
-            res.status(404).json({ message: "Customer not Found!" });
+            ctx.status = 404;
+            ctx.body = { message: "Customer not found" };
         }
     } else {
-        { message: "Customer not Found!" };
+        ctx.status = 404;
+        ctx.body = { message: "Customer not found" };
     }
 }
 
 //DeleteUser
-export const deleteCustomer = async (req: Request, res: Response) => {
-    const findCustomerId = Number(req.params.id);
+export const deleteCustomer = async (ctx: Context) => {
+    const findCustomerId = Number(ctx.params.id);
 
     if (findCustomerId) {
         const customerExist = await customerRepo.findOneBy({
@@ -79,12 +92,14 @@ export const deleteCustomer = async (req: Request, res: Response) => {
         });
 
         if (customerExist) {
-            await customerRepo.delete(Number(req.params.id));
-            res.json({ message: "Customer Removed" });
+            await customerRepo.softDelete(findCustomerId);
+            ctx.body = { message: "Customer Removed" };
         } else {
-            res.status(404).json({ message: "Customer not found" })
+            ctx.status = 404;
+            ctx.body = { message: "Customer not found" };
         }
     } else {
-        res.status(404).json({ message: "Customer not found" })
+        ctx.status = 404;
+        ctx.body = { message: "Customer not found" };
     }
 }

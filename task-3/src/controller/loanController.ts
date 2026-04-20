@@ -1,45 +1,60 @@
-import { Request, Response } from "express";
-import { AppDataSource } from "../datasource/app";
-import { Customer } from "../entity/customer";
-import { Loan } from "../entity/loan";
+import { Context } from "koa";
+import { customerRepo } from "../repository/customerRepo";
+import { loanRepo } from "../repository/loanRepo";
+import { CreateLoan } from "../types/interfaces";
+import { LoanStatus } from "../types/enums";
 
-const customerRepo = AppDataSource.getRepository(Customer);
-const loanRepo = AppDataSource.getRepository(Loan);
-
-export const newLoan = async (req: Request, res: Response) => {
-    const { customerId, amount, interestRate } = req.body;
+export const newLoan = async (ctx: Context) => {
+    const body = ctx.request.body as CreateLoan;
+    const { customerId, amount, interestRate } = body;
 
     const customer = await customerRepo.findOneBy({ id: customerId });
-    if (!customer) return res.json({ message: "Customer not found" });
+    if (!customer) {
+        ctx.status = 404;
+        ctx.body = { message: "Customer not found" };
+        return;
+    }
 
     const loan = loanRepo.create({
-        amount, interestRate, status: "PENDING", customer
+        amount: Number(amount),
+        interestRate: Number(interestRate),
+        status: LoanStatus.PENDING,
+        customer: customer
     });
 
     await loanRepo.save(loan);
-
-    res.json(loan);
+    ctx.body = loan;
 };
 
 //getLoan by Customer ID
-export const getLoan = async (req: Request, res: Response) => {
+export const getLoan = async (ctx: Context) => {
     const loan = await loanRepo.find({
-        where: { customer: { id: Number(req.params.id) } }
+        where: { customer: { id: Number(ctx.params.id) } },
+        relations: ["customer"]
     });
 
-    if (loan.length === 0) res.status(404).json({ message: "No Loan Found" })
+    if (loan.length === 0) {
+        ctx.status = 404;
+        ctx.body = { message: "NO Loan found" };
+        return;
+    }
 
-    res.json(loan);
+    ctx.body = loan;
 }
 
 //updateStatus
-export const updateStatus = async (req: Request, res: Response) => {
-    const loan = await loanRepo.findOneBy({ id: Number(req.params.id) });
+export const updateStatus = async (ctx: Context) => {
+    const loan = await loanRepo.findOneBy({ id: Number(ctx.params.id) });
 
-    if (!loan) return res.status(404).json({ message: "No loan found" });
+    if (!loan) {
+        ctx.status = 404;
+        ctx.body = { message: "NO Loan found" };
+        return;
+    }
 
-    loan.status = req.body.status;
+    const body = ctx.request.body as any;
+    loan.status = body.status;
     await loanRepo.save(loan);
 
-    res.json(loan);
+    ctx.body = loan;
 }

@@ -1,20 +1,16 @@
-import { Request, Response } from "express";
-import { AppDataSource } from "../datasource/app";
-import { Service } from "../entity/service";
+import { Context } from "koa";
+import { serviceRepo } from "../repository/serviceRepo";
+import { CreateService } from "../types/interfaces";
 
-const serviceRepo = AppDataSource.getRepository(Service);
-
-export const createService = async (req: Request, res: Response) => {
-    const service = serviceRepo.create(req.body);
+export const createService = async (ctx: Context) => {
+    const body = ctx.request.body as CreateService;
+    const service = serviceRepo.create(body);
 
     await serviceRepo.save(service);
-    res.json(service);
+    ctx.body = service;
 }
 
-export const getServices = async (req: Request, res: Response) => {
+export const getServices = async (ctx: Context) => {
     const services = await serviceRepo.find();
-    res.json(services);
+    ctx.body = services;
 }
-
-
-

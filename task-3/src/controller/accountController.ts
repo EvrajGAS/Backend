@@ -1,42 +1,44 @@
-import { Request, Response } from "express";
-import { AppDataSource } from "../datasource/app";
-import { Customer } from "../entity/customer";
-import { Account } from "../entity/account";
+import { Context } from "koa";
+import { customerRepo } from "../repository/customerRepo";
+import { accountRepo } from "../repository/accountRepo";
 import { validateAccount } from "../utils/validateAccount";
-import { DeleteResult } from "typeorm";
+import { CreateAccount } from "../types/interfaces";
 
-const customerRepo = AppDataSource.getRepository(Customer);
-const accountRepo = AppDataSource.getRepository(Account);
+export const createAccount = async (ctx: Context) => {
+    const body = ctx.request.body as CreateAccount;
+    const errors = validateAccount(body);
 
-export const createAccount = async (req: Request, res: Response) => {
-    const errors = validateAccount(req.body);
+    if (errors.length > 0) {
+        ctx.status = 404;
+        ctx.body = errors;
+        return;
+    }
 
-    if (errors.length > 0) return res.status(404).json({ errors })
-
-
-    const { customerId, accountNumber, type } = req.body;
+    const { customerId, accountNumber, type } = body;
 
     const customer = await customerRepo.findOneBy({ id: customerId });
-
-    if (!customer) return res.status(404).json({ message: "Customer not found!" });
+    if (!customer) {
+        ctx.status = 404;
+        ctx.body = { message: "Customer not found!" };
+        return;
+    }
 
     const account = accountRepo.create({ accountNumber, type, customer });
     await accountRepo.save(account);
 
-    res.status(201).json(account);
+    ctx.status = 201;
+    ctx.body = account
 }
 
 //getAccounts
-
-export const getAccounts = async (req: Request, res: Response) => {
+export const getAccounts = async (ctx: Context) => {
     const accounts = await accountRepo.find({ relations: ["customer"] });
-    res.json(accounts);
+    ctx.body = accounts;
 }
 
 //getAccountbyID
-
-export const getAccountbyID = async (req: Request, res: Response) => {
-    const findAccountbyId = Number(req.params.id);
+export const getAccountbyID = async (ctx: Context) => {
+    const findAccountbyId = Number(ctx.params.id);
 
     if (findAccountbyId) {
         const account = await accountRepo.findOne({
@@ -44,21 +46,33 @@ export const getAccountbyID = async (req: Request, res: Response) => {
             relations: ["customer"]
         });
 
-        if (account) res.json(account);
-        else res.status(404).json({ message: "Account not found" });
+        if (account) ctx.body = account;
+        else {
+            ctx.status = 404;
+            ctx.body = { message: "Account not found" }
+        }
     }
-    else res.status(404).json({ message: "Account not found" });
+    else {
+        ctx.status = 404;
+        ctx.body = { message: "Account not found" }
+    }
 }
 
 //DeleteACcount
-export const deleteAccount = async (req: Request, res: Response) => {
-    const findAccountbyId = Number(req.params.id);
+export const deleteAccount = async (ctx: Context) => {
+    const findAccountbyId = Number(ctx.params.id);
 
     if (findAccountbyId) {
-        const deleteAccount = await accountRepo.delete(findAccountbyId);
+        const deleteAccount = await accountRepo.softDelete(findAccountbyId);
 
-        if (deleteAccount.affected !== 0) res.json({ message: "Account Deleted" });
-        else res.status(404).json({ message: "Account not found" });
+        if (deleteAccount.affected !== 0) ctx.body = { message: "Account Deleted" };
+        else {
+            ctx.status = 404;
+            ctx.body = { message: "Account not found" };
+        }
     }
-    else res.status(404).json({ message: "Account not found" });
+    else {
+        ctx.status = 404;
+        ctx.body = { message: "Account not found" };
+    }
 }

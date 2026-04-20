@@ -1,64 +1,85 @@
-import { Request, Response } from "express";
-import { AppDataSource } from "../datasource/app";
-import { Customer } from "../entity/customer";
-import { KYC } from "../entity/kyc";
+import { Context } from "koa";
+import { customerRepo } from "../repository/customerRepo";
+import { kycRepo } from "../repository/kycRepo";
 import { validateKYC } from "../utils/validateKYC";
+import { CreateKYC } from "../types/interfaces";
 
-const customerRepo = AppDataSource.getRepository(Customer);
-const kycRepo = AppDataSource.getRepository(KYC);
 
-export const createKYC = async (req: Request, res: Response) => {
-    const errors = validateKYC(req.body);
 
-    if (errors.length > 0) return res.status(404).json({ errors });
+export const createKYC = async (ctx: Context) => {
+    const body = ctx.request.body as CreateKYC;
+    const errors = validateKYC(body);
 
-    const customerId = Number(req.params.id)
+    if (errors.length > 0) {
+        ctx.status = 404;
+        ctx.body = errors;
+        return;
+    }
+
+    const customerId = Number(ctx.params.id)
     if (customerId) {
         const customer = await customerRepo.findOne({
             where: { id: customerId },
             relations: ["kyc"],
         });
 
-        if (!customer) return res.status(404).json({ mesaage: "Customer not found" });
-        else if (customer.kyc) return res.status(404).json({ mesaage: "KYC aready exists!" });
+        if (!customer) {
+            ctx.status = 404;
+            ctx.body = { mesaage: "Customer not found" };
+        }
+        else if (customer.kyc) {
+            ctx.status = 404;
+            ctx.body = { mesaage: "KYC aready exists!" };
+            return;
+        }
 
-        const kyc = kycRepo.create({ ...req.body, customer });
-
+        const kyc = kycRepo.create({ ...body, customer: customer! });
         await kycRepo.save(kyc);
-        res.status(201).json(kyc);
+
+        ctx.status = 201;
+        ctx.body = kyc;
     } else {
-        return res.status(404).json({ mesaage: "Customer not found" });
+        ctx.status = 404;
+        ctx.body = { mesaage: "Customer not found" };
     }
 }
 
 //getKYC
-export const getKYC = async (req: Request, res: Response) => {
-    const customerId = Number(req.params.id)
+export const getKYC = async (ctx: Context) => {
+    const customerId = Number(ctx.params.id)
 
     if (customerId) {
         const kyc = await kycRepo.findOne({
             where: { customer: { id: customerId } }
         });
 
-        if (kyc) res.json(kyc);
-        else res.status(404).json({ mesaage: "KYC not found" });
+        if (kyc) ctx.body = kyc;
+        else {
+            ctx.status = 404;
+            ctx.body = { mesaage: "KYC not found" };
+        }
     }
-    else return res.status(404).json({ mesaage: "KYC not found" });
+    else {
+        ctx.status = 404;
+        ctx.body = { mesaage: "KYC not found" };
+    }
 }
 
 //UpdateKYC
-export const updateKYC = async (req: Request, res: Response) => {
+export const updateKYC = async (ctx: Context) => {
     const kyc = await kycRepo.findOne({
-        where: { customer: { id: Number(req.params.id) } }
+        where: { customer: { id: Number(ctx.params.id) } }
     });
 
     if (!kyc) {
-        return res.status(404).json({ mesaage: "KYC not found" });
+        ctx.status = 404;
+        ctx.body = { mesaage: "KYC not found" };
+        return;
     }
 
-    kycRepo.merge(kyc, req.body);
+    kycRepo.merge(kyc, ctx.request.body as CreateKYC);
     await kycRepo.save(kyc);
 
-    res.json(kyc);
+    ctx.body = kyc;
 }
 

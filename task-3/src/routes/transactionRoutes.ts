@@ -1,7 +1,7 @@
-import { Router } from "express";
+import  Router  from "@koa/router";
 import { createTransaction, getTransactionbyID } from "../controller/transactionController";
 
-const router = Router({ mergeParams: true });
+const router = new Router();
 
 router.post("/transactions", createTransaction);
 router.get("/accounts/:id/transactions", getTransactionbyID);

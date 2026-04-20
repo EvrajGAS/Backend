@@ -1,7 +1,9 @@
-import { Router } from "express";
+import Router from "@koa/router";
 import { createAccount, getAccounts, getAccountbyID, deleteAccount } from "../controller/accountController";
 
-const router = Router({ mergeParams: true });
+const router = new Router({
+    prefix: "/accounts",
+});
 
 router.post("/", createAccount);
 router.get("/", getAccounts);

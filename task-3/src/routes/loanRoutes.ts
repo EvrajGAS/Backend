@@ -1,7 +1,7 @@
-import { Router } from "express";
+import  Router  from "@koa/router";
 import { newLoan, updateStatus, getLoan } from "../controller/loanController";
 
-const router = Router({ mergeParams: true });
+const router = new Router();
 
 router.post("/loans", newLoan);
 router.get("/customer/:id/loans", getLoan);
