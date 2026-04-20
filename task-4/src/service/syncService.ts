@@ -31,13 +31,6 @@ export const syncUpdatedProducts = async () => {
     const lastSyncTime = log.lastSyncTime ? new Date(log.lastSyncTime).toUTCString() : null;
 
     const deletedProducts = await fetchDeletedProducts(lastSyncTime);
-    // const dbProducts = await productRepo.find({
-    //     select: ["id"]
-    // })
-
-    // const dbIds = dbProducts.map((p) => p.id);
-
-    // const deletedIds = dbIds.filter((id) => !shopifyID.includes(id));
 
     if (deletedProducts.length) {
         await productRepo.delete(deletedProducts);
