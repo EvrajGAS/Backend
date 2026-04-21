@@ -1,21 +1,14 @@
 import axios from "axios";
+import { batchSizes } from "../utils/constant";
 
 const SHOP_NAME = process.env.SHOPIFY_STORE!;
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 
-export const fetchAllProducts = async () => {
-    let hasNextPage = true;
-    let cursor: string | null = null;
-
-    const allProducts: any[] = [];
-
-    while (hasNextPage) {
-        const query = `
+export const fetchAllProducts = async (cursor: string | null) => {
+    const query = `
     {
-    products(first: 50 ${cursor ? `, after: "${cursor}"` : ""}){
-       edges{
-           cursor
-           node{
+    products(first: ${batchSizes.actual} ${cursor ? `, after: "${cursor}"` : ""}){ 
+           nodes{
               id
               title
               description
@@ -34,57 +27,42 @@ export const fetchAllProducts = async () => {
                     }
                  }
               }
-          }
-       }
+           }
           pageInfo{
+            endCursor
             hasNextPage
           }
        }
     }`;
 
-        const response = await axios.post(
-            `https://${SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`,
-            { query }, {
-            headers: {
-                "X-Shopify-Access-Token": TOKEN,
-                "Content-Type": "application/json",
-            },
-        }
-        );
-
-        const resData = response.data;
-        if (!resData || !resData.data || !resData.data.products) {
-            console.log("error", resData.error)
-            return [];
-        }
-
-        const data: any = resData.data.products;
-        data.edges.forEach((edge: any) => {
-            allProducts.push(edge.node);
-        });
-
-        hasNextPage = data.pageInfo.hasNextPage;
-
-        if (hasNextPage) {
-            cursor = data.edges[data.edges.length - 1].cursor;
-        }
+    const response = await axios.post(
+        `https://${SHOP_NAME}.myshopify.com/admin/api/2026-04/graphql.json`,
+        { query }, {
+        headers: {
+            "X-Shopify-Access-Token": TOKEN,
+            "Content-Type": "application/json",
+        },
     }
-    return allProducts;
+    );
+
+    const data = response?.data?.data?.products;
+
+    if (!data) {
+        throw new Error("Shopify fetch error");
+    }
+    return {
+        products: data.nodes,
+        hasNextPage: data.pageInfo.hasNextPage,
+        cursor: data.pageInfo.endCursor,
+    };
+
 }
 
-export const fetchUpdatedProducts = async (lastSyncTime: string | null) => {
-    let hasNextPage = true;
-    let cursor: string | null = null;
-
-    const products: any[] = [];
-
-    while (hasNextPage) {
-        const query = `
+export const fetchUpdatedProducts = async (cursor: string | null, lastSyncTime: string | null) => {
+    const query = `
     {
-    products(first: 50${cursor ? `, after: "${cursor}"` : ""} ${lastSyncTime ? `, query: "updated_at:>'${lastSyncTime}'"` : ""}){
-       edges{
-           cursor
-           node{
+    products(first: ${batchSizes.actual}${cursor ? `, after: "${cursor}"` : ""} ${lastSyncTime ? `, query: "updated_at:>'${lastSyncTime}'"` : ""}){    
+           nodes{
               id
               title
               description
@@ -104,8 +82,8 @@ export const fetchUpdatedProducts = async (lastSyncTime: string | null) => {
                     }
                  }
               }
-          }
-       }
+            }
+       
           pageInfo{
             hasNextPage
             endCursor
@@ -113,54 +91,43 @@ export const fetchUpdatedProducts = async (lastSyncTime: string | null) => {
        }
     }`;
 
-        // console.log(query);
-
-
-        const response = await axios.post(
-            `https://${SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`,
-            { query }, {
-            headers: {
-                "X-Shopify-Access-Token": TOKEN,
-                "Content-Type": "application/json",
-            },
-        }
-        ).catch(e => console.log(e.response.data));
-
-        const resData = response?.data;
-
-        // console.log(resData)
-        if (!resData || !resData.data || !resData.data.products) {
-            console.log("shopifycle error", resData?.data)
-            return [];
-        }
-
-        const data: any = resData.data.products;
-        data.edges.forEach((edge: any) => {
-            products.push(edge.node);
-        });
-
-        hasNextPage = data.pageInfo.hasNextPage;
-
-        if (hasNextPage) {
-            cursor = data.edges[data.edges.length - 1].cursor;
-        }
+    const response = await axios.post(
+        `https://${SHOP_NAME}.myshopify.com/admin/api/2026-04/graphql.json`,
+        { query }, {
+        headers: {
+            "X-Shopify-Access-Token": TOKEN,
+            "Content-Type": "application/json",
+        },
     }
-    return products;
+    ).catch(e => console.log(e.response.data));
+
+    const data = response?.data?.data?.products;
+
+    if (!data) {
+        throw new Error("Shopify fetch error");
+    }
+
+    return {
+        products: data.nodes,
+        hasNextPage: data.pageInfo.hasNextPage,
+        cursor: data.pageInfo.endCursor,
+    };
 }
 
 export const fetchDeletedProducts = async (lastSyncTime: string | null) => {
     let hasNextPage = true;
     let cursor: string | null = null;
 
-    const deletedProducts: string[] = [];
+    const deletedProducts: { id: string; time: string }[] = [];
 
     while (hasNextPage) {
         const query = `
             query GetProducts($cursor: String, $query: String) {
-                events(first: 50, after: $cursor, query: $query) {
+                events(first: ${batchSizes.actual}, after: $cursor, query: $query) {
                     nodes {
                       ... on BasicEvent {
                           subjectId
+                          createdAt
                         }
                      }
                     pageInfo {
@@ -169,14 +136,14 @@ export const fetchDeletedProducts = async (lastSyncTime: string | null) => {
                        }
                    }
                }`;
-               
+
         const variables = {
             cursor,
             query: `action:'destroy' AND subject_type:'PRODUCT' AND created_at:>='${lastSyncTime}'`
         }
 
         const response = await axios.post(
-            `https://${SHOP_NAME}.myshopify.com/admin/api/2024-04/graphql.json`,
+            `https://${SHOP_NAME}.myshopify.com/admin/api/2026-04/graphql.json`,
             { query, variables }, {
             headers: {
                 "X-Shopify-Access-Token": TOKEN,
@@ -187,15 +154,21 @@ export const fetchDeletedProducts = async (lastSyncTime: string | null) => {
 
         const data: any = response.data?.data?.events;
         if (!data) return [];
+
+
         data.nodes.forEach((node: any) => {
-            deletedProducts.push(node.subjectId);
+            deletedProducts.push({
+                id: node.subjectId,
+                time: node.createdAt
+            })
         });
 
         hasNextPage = data.pageInfo.hasNextPage;
 
         if (hasNextPage) {
-            cursor = data.edges[data.edges.length - 1].cursor;
+            cursor = data.pageInfo.endCursor
         }
     }
+
     return deletedProducts;
 }

@@ -4,36 +4,52 @@ import { fetchAllProducts } from "./shopifyService";
 import { productRepo } from "../repository/customerRepo";
 
 export const fetchAndStoreProducts = async () => {
-    const products: any = await fetchAllProducts();
+    let hasNextPage = true;
+    let cursor: string | null = null;
 
-    const formattedProducts: Product[] = [];
+    let totalSaved = 0;
 
-    for (const p of products) {
-        const product = new Product();
+    while (hasNextPage) {
+        const { products, hasNextPage: nextPage, cursor: nextCursor } = await fetchAllProducts(cursor);
 
-        product.id = p.id;
-        product.title = p.title;
-        product.description = p.description;
-        product.vendor = p.vendor;
-        product.productType = p.category;
-        product.publishedAt = p.publishedAt;
-        product.updatedAt = p.updated_at;
+        const formattedProducts: Product[] = [];
 
-        product.variants = p.variants.edges.map((v: any) => {
-            const variant = new Variant();
+        for (const p of products) {
+            const product = new Product();
 
-            variant.id = v.node.id;
-            variant.title = v.node.title;
-            variant.displayName = v.node.displayName;
-            variant.price = v.node.price;
-            variant.sku = v.node.sku;
-            variant.createdAt = v.node.createdAt;
+            product.id = p.id;
+            product.title = p.title;
+            product.description = p.description;
+            product.vendor = p.vendor;
+            product.productType = p.productType;
+            product.publishedAt = p.publishedAt;
+            product.updatedAt = p.updatedAt;
 
-            return variant;
-        });
-        formattedProducts.push(product);
+            product.variants = p.variants.edges.map((v: any) => {
+                const variant = new Variant();
+
+                variant.id = v.node.id;
+                variant.title = v.node.title;
+                variant.displayName = v.node.displayName;
+                variant.price = v.node.price;
+                variant.sku = v.node.sku;
+                variant.createdAt = v.node.createdAt;
+
+                return variant;
+            });
+
+            formattedProducts.push(product);
+        }
+        await productRepo.save(formattedProducts);
+
+        totalSaved += formattedProducts.length;
+
+        console.log(`Saved batch: ${formattedProducts.length}`);
+
+        hasNextPage = nextPage;
+        cursor = nextCursor;
+
     }
-    await productRepo.save(formattedProducts);
-
-    return formattedProducts.length;
+    console.log(`Total saved: ${totalSaved}`);
+    return totalSaved;
 }

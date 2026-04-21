@@ -28,62 +28,95 @@ const updateSyncTime = async (time: Date) => {
 
 export const syncUpdatedProducts = async () => {
     const log = await getLastSync();
-    const lastSyncTime = log.lastSyncTime ? new Date(log.lastSyncTime).toUTCString() : null;
+    const lastSyncTime = log.lastSyncTime
+        ? new Date(log.lastSyncTime).toISOString()
+        : null;
 
     const deletedProducts = await fetchDeletedProducts(lastSyncTime);
+    let lastDeleteTime: string | null = lastSyncTime;
 
     if (deletedProducts.length) {
-        await productRepo.delete(deletedProducts);
+        const deletedIds = deletedProducts.map(d => d.id)
+        await productRepo.delete(deletedIds);
         console.log(`Succesfully deleted ${deletedProducts.length} Products`)
-    }
 
-    const updatedProducts = await fetchUpdatedProducts(lastSyncTime);
-
-    if (updatedProducts.length === 0) {
-        console.log("No updates");
-        await updateSyncTime(new Date());
-        return deletedProducts.length;
-    }
-
-    let maxUpdatedAt: string | null = lastSyncTime;
-
-    for (const p of updatedProducts) {
-        const product = new Product();
-
-        product.id = p.id;
-        product.title = p.title;
-        product.description = p.description;
-        product.vendor = p.vendor;
-        product.productType = p.category;
-        product.publishedAt = p.publishedAt;
-        product.updatedAt = p.updatedAt;
-
-        await productRepo.save(product);
-
-        const variants = p.variants.edges.map((v: any) => {
-            const variant = new Variant();
-
-            variant.id = v.node.id;
-            variant.title = v.node.title;
-            variant.displayName = v.node.displayName;
-            variant.price = v.node.price;
-            variant.sku = v.node.sku;
-            variant.createdAt = v.node.createdAt;
-
-            return variant;
-        });
-        await variantRepo.save(variants);
-
-        if(!maxUpdatedAt || new Date(p.updatedAt) > new Date(maxUpdatedAt)){
-            maxUpdatedAt = p.updatedAt;
+        for (const d of deletedProducts) {
+            if (!lastDeleteTime || new Date(d.time) > new Date(lastDeleteTime)) {
+                lastDeleteTime = d.time;
+            }
         }
     }
 
-    if(maxUpdatedAt){
-        await updateSyncTime(new Date(maxUpdatedAt));
-    }else await  updateSyncTime(new Date());
+    let hasNextPage = true;
+    let cursor: string | null = null;
 
-    console.log(`Synced ${updatedProducts.length} Products`);
+    let totalUpdated = 0;
+    let maxUpdatedAt: string | null = lastSyncTime;
 
-    return updatedProducts.length + deletedProducts.length;
-}
+    while (hasNextPage) {
+        const { products, hasNextPage: nextPage, cursor: nextCursor } =
+            await fetchUpdatedProducts(cursor, lastSyncTime);
+
+        if (!products.length) break;
+
+        for (const p of products) {
+
+            const product = new Product();
+
+            product.id = p.id;
+            product.title = p.title;
+            product.description = p.description;
+            product.vendor = p.vendor;
+            product.productType = p.productType;
+            product.publishedAt = p.publishedAt;
+            product.updatedAt = p.updatedAt;
+
+            await productRepo.save(product);
+
+            const variants = p.variants.edges.map((v: any) => {
+                const variant = new Variant();
+
+                variant.id = v.node.id;
+                variant.title = v.node.title;
+                variant.displayName = v.node.displayName;
+                variant.price = v.node.price;
+                variant.sku = v.node.sku;
+                variant.createdAt = v.node.createdAt;
+                variant.product = product;
+
+                return variant;
+            });
+
+            await variantRepo.save(variants);
+
+            if (!maxUpdatedAt || new Date(p.updatedAt) > new Date(maxUpdatedAt)) {
+                maxUpdatedAt = p.updatedAt;
+            }
+
+            totalUpdated++;
+        }
+
+        hasNextPage = nextPage;
+        cursor = nextCursor;
+    }
+
+    let finalTime: string | null = null;
+
+    if (maxUpdatedAt && lastDeleteTime) {
+        finalTime = new Date(maxUpdatedAt) > new Date(lastDeleteTime) ? maxUpdatedAt : lastDeleteTime;
+    } else {
+        finalTime = maxUpdatedAt || lastDeleteTime;
+    }
+
+    if (finalTime) {
+        const nextTime = new Date(finalTime);
+
+        nextTime.setMilliseconds(nextTime.getMilliseconds() + 1);
+        await updateSyncTime(nextTime);
+    } else await updateSyncTime(new Date());
+
+
+    console.log(`Updated ${totalUpdated} products and Deleted ${deletedProducts.length} products`);
+
+    return totalUpdated + deletedProducts.length;
+};
