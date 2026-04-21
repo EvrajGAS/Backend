@@ -1,7 +1,7 @@
 import { Product } from "../entities/productEntity";
 import { Variant } from "../entities/variantEntity";
 import { SyncLog } from "../entities/syncEntity";
-import { fetchUpdatedProducts, fetchDeletedProducts } from "./shopifyService";
+import { fetchUpdatedProducts, fetchDeletedProducts, fetchUpdatedVariants } from "./shopifyService";
 import { productRepo } from "../repository/customerRepo";
 import { variantRepo } from "../repository/VariantRepo";
 import { syncRepo } from "../repository/syncRepo";
@@ -47,20 +47,22 @@ export const syncUpdatedProducts = async () => {
         }
     }
 
-    let hasNextPage = true;
-    let cursor: string | null = null;
+    let pHasNextPage = true;
+    let pCursor: string | null = null;
 
-    let totalUpdated = 0;
+    let totalUpdatedProducts = 0;
     let maxUpdatedAt: string | null = lastSyncTime;
 
-    while (hasNextPage) {
-        const { products, hasNextPage: nextPage, cursor: nextCursor } =
-            await fetchUpdatedProducts(cursor, lastSyncTime);
+    while (pHasNextPage) {
+        const result = await fetchUpdatedProducts(pCursor, lastSyncTime);
+        if (!result) {
+            throw new Error('Failed to update Products');
+        }
 
+        const { products, hasNextPage: nextHasNextPage, cursor: nextCursor } = result;
         if (!products.length) break;
 
-        for (const p of products) {
-
+        const mappedProducts = products.map((p: any) => {
             const product = new Product();
 
             product.id = p.id;
@@ -71,52 +73,83 @@ export const syncUpdatedProducts = async () => {
             product.publishedAt = p.publishedAt;
             product.updatedAt = p.updatedAt;
 
-            await productRepo.save(product);
+            return product;
+        })
 
-            const variants = p.variants.edges.map((v: any) => {
-                const variant = new Variant();
+        await productRepo.save(mappedProducts);
+        totalUpdatedProducts += mappedProducts.length;
 
-                variant.id = v.node.id;
-                variant.title = v.node.title;
-                variant.displayName = v.node.displayName;
-                variant.price = v.node.price;
-                variant.sku = v.node.sku;
-                variant.createdAt = v.node.createdAt;
-                variant.product = product;
-
-                return variant;
-            });
-
-            await variantRepo.save(variants);
-
+        for (const p of products) {
             if (!maxUpdatedAt || new Date(p.updatedAt) > new Date(maxUpdatedAt)) {
                 maxUpdatedAt = p.updatedAt;
             }
-
-            totalUpdated++;
         }
 
-        hasNextPage = nextPage;
-        cursor = nextCursor;
+        pHasNextPage = nextHasNextPage;
+        pCursor = nextCursor;
     }
 
-    let finalTime: string | null = null;
+    let vHasNextPage = true;
+    let vCursor: string | null = null;
 
-    if (maxUpdatedAt && lastDeleteTime) {
-        finalTime = new Date(maxUpdatedAt) > new Date(lastDeleteTime) ? maxUpdatedAt : lastDeleteTime;
-    } else {
-        finalTime = maxUpdatedAt || lastDeleteTime;
+    let totalUpdatedVariants = 0;
+    let maxVariantUpdatedAt: string | null = lastSyncTime;
+
+    while (vHasNextPage) {
+        const result = await fetchUpdatedVariants(vCursor, lastSyncTime);
+        if (!result) {
+            throw new Error('Failed to Update Variants');
+        }
+
+        const { variants, hasNextPage: nextHasNextPage, cursor: nextCursor } = result;
+        if (!variants.length) break;
+
+        const mapped = variants.map((v: any) => {
+            if (!v.product) return null;
+            const variant = new Variant();
+
+            variant.id = v.id;
+            variant.title = v.title;
+            variant.displayName = v.displayName;
+            variant.price = v.price;
+            variant.sku = v.sku;
+            variant.createdAt = v.createdAt;
+            variant.product = { id: v.product.id } as Product;
+
+            return variant;
+        });
+
+        await variantRepo.save(mapped);
+        totalUpdatedVariants += mapped.length;
+
+        for (const v of variants) {
+            if (!maxVariantUpdatedAt || new Date(v.updatedAt) > new Date(maxVariantUpdatedAt)) {
+                maxVariantUpdatedAt = v.updatedAt;
+            }
+        }
+
+        vHasNextPage = nextHasNextPage;
+        vCursor = nextCursor;
+    }
+
+
+    let finalTime: string | null = null;
+    const allTimes = [maxUpdatedAt, maxVariantUpdatedAt, lastDeleteTime];
+
+    if (allTimes.length) {
+        finalTime = allTimes.reduce((a, b) =>
+            new Date(a!) > new Date(b!) ? a : b
+        );
     }
 
     if (finalTime) {
         const nextTime = new Date(finalTime);
-
         nextTime.setMilliseconds(nextTime.getMilliseconds() + 1);
         await updateSyncTime(nextTime);
     } else await updateSyncTime(new Date());
 
 
-    console.log(`Updated ${totalUpdated} products and Deleted ${deletedProducts.length} products`);
+    console.log(`Updated ${totalUpdatedProducts} Products, Updated ${totalUpdatedVariants} Variants and Deleted ${deletedProducts.length} products`);
 
-    return totalUpdated + deletedProducts.length;
+    return totalUpdatedProducts + totalUpdatedVariants + deletedProducts.length;
 };

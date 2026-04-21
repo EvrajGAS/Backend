@@ -1,20 +1,22 @@
 import { Product } from "../entities/productEntity";
 import { Variant } from "../entities/variantEntity";
-import { fetchAllProducts } from "./shopifyService";
+import { fetchAllProducts, fetchVariantsByProductId } from "./shopifyService";
 import { productRepo } from "../repository/customerRepo";
+import { variantRepo } from "../repository/VariantRepo";
 
 export const fetchAndStoreProducts = async () => {
-    let hasNextPage = true;
-    let cursor: string | null = null;
+    let totalProducts = 0;
+    let totalVariants = 0;
+    let pHasNextPage = true;
+    let pCursor: string | null = null;
 
-    let totalSaved = 0;
+    while (pHasNextPage) {
+        const result = await fetchAllProducts(pCursor);
+        if (!result) throw new Error('Failed to fetch products');
 
-    while (hasNextPage) {
-        const { products, hasNextPage: nextPage, cursor: nextCursor } = await fetchAllProducts(cursor);
+        const { products, hasNextPage: nextHasNextPage, cursor: nextCursor } = result;
 
-        const formattedProducts: Product[] = [];
-
-        for (const p of products) {
+        const mappedProducts = products.map((p: any) => {
             const product = new Product();
 
             product.id = p.id;
@@ -25,31 +27,47 @@ export const fetchAndStoreProducts = async () => {
             product.publishedAt = p.publishedAt;
             product.updatedAt = p.updatedAt;
 
-            product.variants = p.variants.edges.map((v: any) => {
-                const variant = new Variant();
+            return product;
+        });
 
-                variant.id = v.node.id;
-                variant.title = v.node.title;
-                variant.displayName = v.node.displayName;
-                variant.price = v.node.price;
-                variant.sku = v.node.sku;
-                variant.createdAt = v.node.createdAt;
 
-                return variant;
-            });
+        await productRepo.save(mappedProducts);
+        totalProducts += mappedProducts.length;
 
-            formattedProducts.push(product);
-        }
-        await productRepo.save(formattedProducts);
-
-        totalSaved += formattedProducts.length;
-
-        console.log(`Saved batch: ${formattedProducts.length}`);
-
-        hasNextPage = nextPage;
-        cursor = nextCursor;
-
+        pHasNextPage = nextHasNextPage;
+        pCursor = nextCursor;
     }
-    console.log(`Total saved: ${totalSaved}`);
-    return totalSaved;
+
+    let vCursor: string | null = null;
+    let vHasNextPage = true;
+
+    while (vHasNextPage) {
+        const result = await fetchVariantsByProductId(vCursor);
+        if (!result) throw new Error('Failed to fetch variants');
+
+        const { variants, hasNextPage: nextHasNextPage, cursor: nextCursor } = result;
+
+        const mapped = variants.map((v: any) => {
+            const variant = new Variant();
+
+            variant.id = v.id;
+            variant.title = v.title;
+            variant.displayName = v.displayName;
+            variant.price = v.price;
+            variant.sku = v.sku;
+            variant.createdAt = v.createdAt;
+            variant.product = { id: v.product.id } as Product;
+
+            return variant;
+        });
+
+        await variantRepo.save(mapped);
+        totalVariants += mapped.length
+        vHasNextPage = nextHasNextPage;
+        vCursor = nextCursor;
+    }
+
+    console.log(`Saved Products: ${totalProducts}`);
+    console.log(`Saved Variants: ${totalVariants}`);
+    return totalProducts + totalVariants;
 }
