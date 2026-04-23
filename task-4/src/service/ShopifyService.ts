@@ -17,11 +17,6 @@ export class ShopifyService {
             }
         );
 
-        if (res.data.errors) {
-            console.log("shopifyGraphql error", res.data.errors);
-            throw new Error("Shopify Api Error");
-        }
-
         if (!res.data.data) {
             console.log("Invalid shopify response", res.data);
             throw new Error("no data returned");
