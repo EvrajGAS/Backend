@@ -24,7 +24,7 @@ export class SyncService {
         const startTime = new Date();
         console.log("Start Time: ", startTime);
 
-        console.log("Deleting Products...");
+        console.log("Started Deleting Products...");
         let dCursor: string | null = null;
         let dHasNextPage = true;
         let totalDeletedProducts = 0;
@@ -42,14 +42,9 @@ export class SyncService {
             dCursor = endCursor;
         }
 
-        if (totalDeletedProducts === 0) {
-            console.log("0 Deleted Products")
-        } else {
-            console.log(`Deleted ${totalDeletedProducts} product`);
-        }
+        console.log("Completed Products Deletion")
 
-
-        console.log("Fetching Products...");
+        console.log("Started Fetching Products...");
 
         let pCursor: string | null = null;
         let pHasNextPage = true;
@@ -67,13 +62,9 @@ export class SyncService {
             pCursor = endCursor;
         }
 
-        if (totalProductsCounts === 0) {
-            console.log("0 Products Fetched")
-        } else {
-            console.log(`Fetched ${totalProductsCounts} Products`);
-        }
+        console.log("Completed Fetching Products");
 
-        console.log("Fetching Variants...");
+        console.log("Started Fetching Variants...");
         let vCursor: string | null = null;
         let vHasNextPage = true;
         let totalVariantsCounts = 0;
@@ -90,11 +81,8 @@ export class SyncService {
             vCursor = endCursor;
         }
 
-        if (totalVariantsCounts === 0) {
-            console.log("0 Variants Fetched")
-        } else {
-            console.log(`Fetched ${totalVariantsCounts} Variants`);
-        }
+        console.log("Completed Fetching Variants")
+
 
         await this.clientRepo.endSync(client);
 

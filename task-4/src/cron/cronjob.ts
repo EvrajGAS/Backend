@@ -1,5 +1,4 @@
 import cron from "node-cron";
-import { SyncService } from "../service/ProductService";
 import { AppDataSource } from "../datasource/app";
 
 import { Client } from "../entities/Client";
@@ -9,6 +8,9 @@ import { Variant } from "../entities/Variants";
 import { ProductRepository } from "../repository/ProductRepo";
 import { ClientRepository } from "../repository/ClientRepo";
 import { VariantRepository } from "../repository/VariantRepo";
+
+import { SyncService } from "../service/ProductService";
+
 
 export const startCron = () => {
     const productRepo = new ProductRepository(AppDataSource.getRepository(Product));
@@ -26,23 +28,23 @@ export const startCron = () => {
             if (result.products === 0) {
                 console.log("No Products Fetched");
             } else {
-                console.log(`synced  ${result.products} products succesfully and stored on database`);
+                console.log(`Succesfully synced ${result.products} products and stored on database`);
             }
 
             if (result.variants === 0) {
                 console.log("No Variants Fetched");
             } else {
-                console.log(`synced  ${result.variants} variants succesfully and stored on database`);
+                console.log(`Succesfully synced  ${result.variants} variants and stored on database`);
             }
 
             if (result.deleted === 0) {
                 console.log("No Products Deleted");
             } else {
-                console.log(`Deleted ${result.deleted} products succesfully and removed from database`);
+                console.log(`Succesfully Deleted ${result.deleted} products and removed from database`);
             }
         } catch (err) {
             console.log("error", err);
-        }finally{
+        } finally {
             console.log("Job Completed");
         }
     },
