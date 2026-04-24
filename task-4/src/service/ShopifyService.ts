@@ -1,5 +1,5 @@
 import axios from "axios";
-import { batchSizes } from "../utils/constant";
+import { batchSizes } from "../utils/Constant";
 import { Client } from "../entities/Client";
 
 export class ShopifyService {

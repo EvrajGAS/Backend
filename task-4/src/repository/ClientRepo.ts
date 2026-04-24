@@ -21,12 +21,12 @@ export class ClientRepository {
         return client;
     }
 
-    async startSync(client: Client){
+    async fetchStartTime(client: Client){
         client.lastSyncStart = new Date();
         return this.repo.save(client);
     }
 
-    async endSync(client: Client){
+    async fetchEndTime(client: Client){
         client.lastSyncEnd = new Date();
         return this.repo.save(client);
     }

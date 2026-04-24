@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { AppDataSource } from "./datasource/app";
 import Koa from "koa";
 import bodyParser from "koa-bodyparser";
-import { startCron } from "./cron/cronjob";
+import { startCron } from "./cron/Cronjob";
 
 const port = 3000;
 

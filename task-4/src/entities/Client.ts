@@ -1,7 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from "typeorm";
 
 @Entity()
-export class Client{
+export class Client {
     @PrimaryGeneratedColumn()
     id!: number;
 
@@ -11,9 +11,18 @@ export class Client{
     @Column()
     accessToken!: string;
 
-    @Column({type: "timestamp", nullable:true})
+    @Column({ type: "timestamp", nullable: true })
     lastSyncStart!: Date | null;
 
-    @Column({type: "timestamp", nullable:true})
+    @Column({ type: "timestamp", nullable: true })
     lastSyncEnd!: Date | null;
+
+    @CreateDateColumn()
+    createdAt!: Date;
+
+    @UpdateDateColumn()
+    updatedAt!: Date;
+
+    @DeleteDateColumn()
+    deletedAt!: Date;
 }

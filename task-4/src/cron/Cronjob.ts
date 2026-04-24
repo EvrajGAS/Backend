@@ -9,7 +9,7 @@ import { ProductRepository } from "../repository/ProductRepo";
 import { ClientRepository } from "../repository/ClientRepo";
 import { VariantRepository } from "../repository/VariantRepo";
 
-import { SyncService } from "../service/ProductService";
+import { SyncService } from "../service/FetchProducts";
 
 
 export const startCron = () => {

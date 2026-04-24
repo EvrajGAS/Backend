@@ -1,21 +1,28 @@
-import { Entity, PrimaryColumn, Column, ManyToOne } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from "typeorm";
 import { Product } from "./Products"
+import { InventoryPolicies } from "../utils/Types";
 
 @Entity()
 export class Variant {
-    @PrimaryColumn()
-    id!: string;
+    @PrimaryGeneratedColumn()
+    id!: Number;
+
+    @Column()
+    shopifyId!: string;
 
     @Column()
     title!: string;
 
-    @Column({ nullable: true })
+    @Column({
+        type: "enum",
+        enum: InventoryPolicies,
+    })
     inventoryPolicy!: string;
 
-    @Column({ nullable: true })
+    @Column()
     inventoryQuantity!: Number;
 
-    @Column({ nullable: true })
+    @Column()
     price!: string;
 
     @Column({ nullable: true })
@@ -31,7 +38,16 @@ export class Variant {
     selectedOptions!: { name: string; value: string }[];
 
     @Column()
+    variantCreatedAt!: Date;
+
+    @CreateDateColumn()
     createdAt!: Date;
+
+    @UpdateDateColumn()
+    updatedAt!: Date;
+
+    @DeleteDateColumn()
+    deletedAt!: Date;
 
     @ManyToOne(() => Product, (product) => product.variants, {
         onDelete: "CASCADE"

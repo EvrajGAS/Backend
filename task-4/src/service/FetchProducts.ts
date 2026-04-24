@@ -2,6 +2,8 @@ import { ProductRepository } from "../repository/ProductRepo";
 import { VariantRepository } from "../repository/VariantRepo";
 import { ClientRepository } from "../repository/ClientRepo";
 import { ShopifyService } from "./ShopifyService";
+import { In } from "typeorm";
+import { Product } from "../entities/Products";
 
 export class SyncService {
 
@@ -17,7 +19,7 @@ export class SyncService {
 
         const shopify = new ShopifyService(client);
 
-        await this.clientRepo.startSync(client);
+        await this.clientRepo.fetchStartTime(client);
 
         const lastSync = client.lastSyncEnd ? new Date(client.lastSyncEnd).toUTCString() : null;
 
@@ -64,6 +66,7 @@ export class SyncService {
 
         console.log("Completed Fetching Products");
 
+
         console.log("Started Fetching Variants...");
         let vCursor: string | null = null;
         let vHasNextPage = true;
@@ -74,9 +77,28 @@ export class SyncService {
 
             if (!variants.length) break;
 
-            await this.variantRepo.saveVariants(variants);
+            const productShopifyIds = variants.map((v:any) => v.product.id);
 
-            totalVariantsCounts += variants.length;
+            const products = await this.productRepo.getProductsByShopifyIds(productShopifyIds);
+
+            const mappedProducts = new Map(
+                products.map(p => [p.shopifyId, p.id])
+            );
+
+            const finalVariants = variants.map((v:any) => {
+                const productId = mappedProducts.get(v.product.id);
+
+                if(!productId) return null;
+
+                return {
+                    ...v, 
+                    product: {id: productId}
+                }
+            })
+
+            await this.variantRepo.saveVariants(finalVariants);
+
+            totalVariantsCounts += finalVariants.length;
             vHasNextPage = hasNextPage;
             vCursor = endCursor;
         }
@@ -84,7 +106,7 @@ export class SyncService {
         console.log("Completed Fetching Variants")
 
 
-        await this.clientRepo.endSync(client);
+        await this.clientRepo.fetchEndTime(client);
 
         const endTime = new Date();
         console.log("End Time: ", endTime);

@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { Repository, In } from "typeorm";
 import { Product } from "../entities/Products";
 
 export class ProductRepository {
@@ -8,27 +8,38 @@ export class ProductRepository {
         const mappedProduct = products.map((p: any) => {
             const product = new Product();
 
-            product.id = p.id;
+            product.shopifyId = p.id;
             product.title = p.title;
             product.vendor = p.vendor;
             product.productType = p.productType;
             product.handle = p.handle;
             product.options = p.options || [];;
             product.status = p.status;
-            product.tags = p.tags;
+            product.tags = p.tags ?? [];
             product.variantsCount = p.variantsCount?.count ?? 0;
-            product.createdAt = p.createdAt;
-            product.publishedAt = p.publishedAt;
-            product.updatedAt = p.updatedAt;
+            product.productCreatedAt = p.createdAt;
+            product.productPublishedAt = p.publishedAt;
+            product.productUpdatedAt = p.updatedAt;
 
             return product;
         });
         return this.repo.save(mappedProduct);
     }
 
-    async deleteProducts(ids: string[]) {
-        if (!ids.length) return;
+    async deleteProducts(shopifyIds: string[]) {
+        if (!shopifyIds.length) return;
 
-        return this.repo.delete(ids);
+        return this.repo.softDelete({ shopifyId: In(shopifyIds) });
+    }
+
+    async getProductsByShopifyIds(shopifyIds: string[]){
+        if(!shopifyIds.length) return [];
+
+        return this.repo.find({
+            select: ["id", "shopifyId"],
+            where:{
+                shopifyId: In(shopifyIds)
+            }
+        });
     }
 }

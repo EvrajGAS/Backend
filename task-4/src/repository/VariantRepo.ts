@@ -11,7 +11,7 @@ export class VariantRepository {
 
             const variant = new Variant();
 
-            variant.id = v.id;
+            variant.shopifyId = v.id;
             variant.title = v.title;
             variant.inventoryPolicy = v.inventoryPolicy;
             variant.inventoryQuantity = v.inventoryQuantity ?? 0;
@@ -20,9 +20,9 @@ export class VariantRepository {
             variant.unitPrice = v.unitPrice;
             variant.sku = v.sku;
             variant.selectedOptions = v.selectedOptions;
-            variant.createdAt = v.createdAt;
+            variant.variantCreatedAt = v.createdAt;
 
-            variant.product = {id: v.product.id} as Product;
+            variant.product = v.product;
 
             return variant;
         });

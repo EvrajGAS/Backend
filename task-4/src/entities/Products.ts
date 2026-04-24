@@ -1,43 +1,60 @@
-import { Entity, PrimaryColumn, Column, OneToMany } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from "typeorm";
 import { Variant } from "./Variants";
+import { ProductStatus } from "../utils/Types";
 
 @Entity()
 export class Product {
-    @PrimaryColumn()
-    id!: string;
+    @PrimaryGeneratedColumn()
+    id!: Number;
+
+    @Column()
+    shopifyId!: string;
 
     @Column()
     title!: string;
 
-    @Column({ nullable: true })
+    @Column()
     vendor!: string;
 
-    @Column({ nullable: true })
+    @Column()
     productType!: string;
 
-    @Column({ nullable: true })
+    @Column()
     handle!: string;
 
     @Column({ type: "json", nullable: true })
     options!: { name: string; value: string }[];
 
-    @Column({ nullable: true })
+    @Column({
+        type: "enum",
+        enum: ProductStatus,
+        default: ProductStatus.DRAFT
+    })
     status!: string;
 
-    @Column({ nullable: true })
-    tags!: string;
+    @Column({ type: "json", nullable: true })
+    tags!: string[];
 
-    @Column({ nullable: true })
+    @Column()
     variantsCount!: Number;
 
-    @Column({ nullable: true })
+    @Column()
+    productCreatedAt!: Date;
+
+    @Column()
+    productPublishedAt!: Date;
+
+    @Column()
+    productUpdatedAt!: Date;
+
+    @CreateDateColumn()
     createdAt!: Date;
 
-    @Column({ nullable: true })
-    publishedAt!: Date;
-
-    @Column({ nullable: true })
+    @UpdateDateColumn()
     updatedAt!: Date;
+
+    @DeleteDateColumn()
+    deletedAt!: Date;
 
     @OneToMany(() => Variant, variant => variant.product, {
         cascade: true,
